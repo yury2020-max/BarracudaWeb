@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BARRACUDA — Trading Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #060810;
+    --bg2:       #0b0f1a;
+    --bg3:       #101525;
+    --border:    #1a2440;
+    --border2:   #243060;
+    --bid:       #00e676;
+    --bid-dim:   #00502a;
+    --ask:       #ff3d5a;
+    --ask-dim:   #5a0018;
+    --accent:    #00b8ff;
+    --accent2:   #7c4dff;
+    --warn:      #ffab00;
+    --text:      #c8d8f0;
+    --text-dim:  #4a6080;
+    --mono:      'Share Tech Mono', monospace;
+    --body:      'Exo 2', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Сетка ── */
+  .layout {
+    display: grid;
+    grid-template-rows: 48px 1fr;
+    grid-template-columns: 260px 1fr 280px;
+    grid-template-areas:
+      "header header header"
+      "book   main   metrics";
+    height: 100vh;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  /* ── Header ── */
+  header {
+    grid-area: header;
+    background: var(--bg2);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 24px;
+    border-bottom: 1px solid var(--border2);
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  .logo span { color: var(--ask); }
+
+  .header-mid {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex: 1;
+  }
+
+  #mid-price {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 1px;
+    transition: color 0.2s;
+  }
+
+  #mid-price.up   { color: var(--bid); }
+  #mid-price.down { color: var(--ask); }
+
+  #spread-val {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.3s;
+  }
+  .dot.online { background: var(--bid); box-shadow: 0 0 8px var(--bid); }
+  .dot.offline { background: var(--ask); }
+
+  .status-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  /* ── Панели ── */
+  .panel {
+    background: var(--bg2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-header {
+    padding: 8px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* ── Order Book ── */
+  #book-panel {
+    grid-area: book;
+  }
+
+  .book-side {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .book-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+    table-layout: fixed;
+  }
+
+  .book-table th {
+    padding: 4px 8px;
+    text-align: right;
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+  }
+  .book-table th:first-child { text-align: left; }
+
+  .book-table td {
+    padding: 3px 8px;
+    text-align: right;
+    white-space: nowrap;
+    position: relative;
+  }
+  .book-table td:first-child { text-align: left; }
+
+  .ask-row td { color: var(--ask); }
+  .bid-row td { color: var(--bid); }
+
+  /* Bar за строкой */
+  .bar-cell {
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-cell::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: var(--bar-pct, 0%);
+    opacity: 0.12;
+  }
+  .ask-row .bar-cell::before { background: var(--ask); }
+  .bid-row .bar-cell::before { background: var(--bid); }
+
+  .book-mid-line {
+    text-align: center;
+    padding: 4px;
+    background: var(--bg3);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    border-top: 1px solid var(--border2);
+    border-bottom: 1px solid var(--border2);
+    flex-shrink: 0;
+  }
+
+  /* ── Главная панель (метрики + торговля) ── */
+  #main-panel {
+    grid-area: main;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    flex: 1;
+  }
+
+  .metric-card {
+    background: var(--bg2);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .metric-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    transition: color 0.2s;
+  }
+
+  .metric-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+
+  .metric-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  /* ── Торговые кнопки ── */
+  .trade-panel {
+    background: var(--bg2);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .trade-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex: 1;
+  }
+
+  .btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-stop {
+    background: var(--ask);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(255,61,90,0.3);
+  }
+
+  .btn-shutdown {
+    background: transparent;
+    color: var(--warn);
+    border: 1px solid var(--warn);
+  }
+
+  .btn-shutdown:hover { background: rgba(255,171,0,0.1); }
+
+  /* ── Правая панель (детекторы + статус) ── */
+  #metrics-panel {
+    grid-area: metrics;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .detector-section {
+    background: var(--bg2);
+    padding: 12px;
+    flex: 1;
+  }
+
+  .detector-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .detector-row:last-child { border-bottom: none; }
+
+  .det-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .det-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .badge {
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .badge-inactive { background: var(--bg3); color: var(--text-dim); }
+  .badge-bid      { background: rgba(0,230,118,0.15); color: var(--bid); border: 1px solid var(--bid-dim); }
+  .badge-ask      { background: rgba(255,61,90,0.15); color: var(--ask); border: 1px solid var(--ask-dim); }
+  .badge-warn     { background: rgba(255,171,0,0.15); color: var(--warn); }
+
+  /* ── Статус бота ── */
+  .bot-stats {
+    background: var(--bg2);
+    padding: 12px;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+
+  .stat-label { font-size: 11px; color: var(--text-dim); }
+  .stat-value { font-family: var(--mono); font-size: 11px; color: var(--text); }
+  .stat-value.warn { color: var(--warn); }
+  .stat-value.danger { color: var(--ask); }
+
+  /* ── Анимация flash при обновлении ── */
+  @keyframes flash-bid {
+    0%   { background: rgba(0,230,118,0.25); }
+    100% { background: transparent; }
+  }
+  @keyframes flash-ask {
+    0%   { background: rgba(255,61,90,0.25); }
+    100% { background: transparent; }
+  }
+
+  .flash-bid { animation: flash-bid 0.3s ease-out; }
+  .flash-ask { animation: flash-ask 0.3s ease-out; }
+
+  /* ── Offline overlay ── */
+  #offline-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: var(--ask);
+    color: #fff;
+    text-align: center;
+    padding: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    z-index: 999;
+    display: none;
+  }
+  #offline-bar.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div id="offline-bar">⚠ BOT DISCONNECTED — RECONNECTING...</div>
+
+<div class="layout">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo">BARRA<span>CUDA</span></div>
+    <div class="header-mid">
+      <div id="mid-price">—</div>
+      <div id="spread-val">spd —</div>
+    </div>
+    <div class="status-bar">
+      <div class="dot" id="status-dot"></div>
+      <div class="status-label" id="status-label">OFFLINE</div>
+      <div id="ts-val" style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">—</div>
+    </div>
+  </header>
+
+  <!-- ── Order Book (левая колонка) ── -->
+  <div class="panel" id="book-panel">
+    <div class="panel-header">
+      <span>ORDER BOOK</span>
+      <span id="book-status" style="color:var(--text-dim);font-size:10px">WARMING</span>
+    </div>
+
+    <!-- Ask levels (top → лучший ask снизу) -->
+    <div class="book-side" style="justify-content:flex-end">
+      <table class="book-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Orders</th>
+            <th>Size</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody id="ask-body"></tbody>
+      </table>
+    </div>
+
+    <div class="book-mid-line" id="book-mid">MID —</div>
+
+    <!-- Bid levels -->
+    <div class="book-side">
+      <table class="book-table">
+        <tbody id="bid-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Центр: метрики + управление ── -->
+  <div id="main-panel">
+
+    <div class="metrics-grid">
+      <!-- Imbalance -->
+      <div class="metric-card">
+        <div class="metric-label">Imbalance</div>
+        <div class="metric-value" id="m-imbalance">—</div>
+        <div class="metric-bar">
+          <div class="metric-bar-fill" id="bar-imbalance" style="width:50%;background:var(--accent)"></div>
+        </div>
+      </div>
+
+      <!-- BSR -->
+      <div class="metric-card">
+        <div class="metric-label">BSR</div>
+        <div class="metric-value" id="m-bsr">—</div>
+        <div class="metric-bar">
+          <div class="metric-bar-fill" id="bar-bsr" style="width:50%;background:var(--accent2)"></div>
+        </div>
+      </div>
+
+      <!-- Cancel Rate Bid -->
+      <div class="metric-card">
+        <div class="metric-label">Cancel Bid</div>
+        <div class="metric-value" id="m-cancel-bid">—</div>
+      </div>
+
+      <!-- Cancel Rate Ask -->
+      <div class="metric-card">
+        <div class="metric-label">Cancel Ask</div>
+        <div class="metric-value" id="m-cancel-ask">—</div>
+      </div>
+
+      <!-- Consume Bid -->
+      <div class="metric-card">
+        <div class="metric-label">Consume Bid</div>
+        <div class="metric-value" id="m-consume-bid">—</div>
+      </div>
+
+      <!-- Consume Ask -->
+      <div class="metric-card">
+        <div class="metric-label">Consume Ask</div>
+        <div class="metric-value" id="m-consume-ask">—</div>
+      </div>
+
+      <!-- Last Trade -->
+      <div class="metric-card">
+        <div class="metric-label">Last Trade</div>
+        <div class="metric-value" id="m-last-trade">—</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim)" id="m-last-side">—</div>
+      </div>
+
+      <!-- Events -->
+      <div class="metric-card">
+        <div class="metric-label">Events</div>
+        <div class="metric-value" id="m-events">—</div>
+      </div>
+    </div>
+
+    <!-- Управление -->
+    <div class="trade-panel">
+      <div class="panel-header" style="padding:0 0 8px;border-bottom:1px solid var(--border)">
+        <span>CONTROLS</span>
+      </div>
+      <div class="trade-row">
+        <button class="btn btn-stop" onclick="sendCmd('emergency_stop')">
+          ⬛ EMERGENCY STOP
+        </button>
+      </div>
+      <div class="trade-row">
+        <button class="btn btn-shutdown" onclick="sendCmd('shutdown')">
+          SHUTDOWN BOT
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)" id="cmd-status"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Правая панель: детекторы + статус ── -->
+  <div id="metrics-panel">
+
+    <!-- Детекторы -->
+    <div class="panel">
+      <div class="panel-header">DETECTORS</div>
+      <div class="detector-section">
+
+        <div class="detector-row">
+          <span class="det-label">ICEBERG</span>
+          <span class="det-value" id="d-iceberg"><span class="badge badge-inactive">NONE</span></span>
+        </div>
+        <div class="detector-row">
+          <span class="det-label">ICE PROB</span>
+          <span class="det-value" id="d-ice-prob">—</span>
+        </div>
+        <div class="detector-row">
+          <span class="det-label">CASCADE</span>
+          <span class="det-value" id="d-cascade"><span class="badge badge-inactive">NONE</span></span>
+        </div>
+        <div class="detector-row">
+          <span class="det-label">CAS DEPTH</span>
+          <span class="det-value" id="d-cas-depth">—</span>
+        </div>
+        <div class="detector-row">
+          <span class="det-label">REPOS AWAY</span>
+          <span class="det-value" id="d-repos-away">—</span>
+        </div>
+        <div class="detector-row">
+          <span class="det-label">REPOS TOWARD</span>
+          <span class="det-value" id="d-repos-toward">—</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Статус бота -->
+    <div class="panel">
+      <div class="panel-header">BOT STATUS</div>
+      <div class="bot-stats">
+        <div class="stat-row">
+          <span class="stat-label">DBO Drop</span>
+          <span class="stat-value" id="s-dbo-drop">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Trade Drop</span>
+          <span class="stat-value" id="s-trade-drop">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Book Valid</span>
+          <span class="stat-value" id="s-book-valid">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Spread</span>
+          <span class="stat-value" id="s-spread">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Update Rate</span>
+          <span class="stat-value" id="s-update-rate">—</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /layout -->
+
+<script>
+// ─────────────────────────────────────────
+// WebSocket подключение
+// ─────────────────────────────────────────
+let ws = null;
+let reconnectTimer = null;
+let lastMid = 0;
+let lastEventCount = 0;
+let lastUpdateTime = Date.now();
+let updateRateInterval = null;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  ws.onopen = () => {
+    setOnline(true);
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  };
+
+  ws.onclose = () => {
+    setOnline(false);
+    reconnectTimer = setTimeout(connect, 2000);
+  };
+
+  ws.onerror = () => { ws.close(); };
+
+  ws.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      updateUI(d);
+    } catch(err) {
+      console.warn('Parse error:', err);
+    }
+  };
+}
+
+function setOnline(on) {
+  document.getElementById('status-dot').className   = 'dot ' + (on ? 'online' : 'offline');
+  document.getElementById('status-label').textContent = on ? 'LIVE' : 'OFFLINE';
+  document.getElementById('offline-bar').className  = on ? '' : 'visible';
+}
+
+// ─────────────────────────────────────────
+// Обновление UI из снапшота
+// ─────────────────────────────────────────
+function updateUI(d) {
+  const tick_size = 0.25;
+
+  // ── Mid price ──
+  const mid = d.mid || 0;
+  const midEl = document.getElementById('mid-price');
+  if (mid > 0) {
+    midEl.textContent = mid.toFixed(2);
+    if (mid > lastMid) {
+      midEl.className = 'up';
+    } else if (mid < lastMid) {
+      midEl.className = 'down';
+    }
+    lastMid = mid;
+  }
+
+  // Spread
+  document.getElementById('spread-val').textContent =
+    `spd ${d.spread !== undefined ? (d.spread * tick_size).toFixed(2) : '—'}`;
+
+  // Book mid line
+  document.getElementById('book-mid').textContent =
+    mid > 0 ? `MID  ${mid.toFixed(3)}` : 'MID —';
+
+  // Book status
+  document.getElementById('book-status').textContent =
+    d.book_valid ? 'LIVE' : 'WARMING';
+  document.getElementById('book-status').style.color =
+    d.book_valid ? 'var(--bid)' : 'var(--warn)';
+
+  // Timestamp
+  if (d.ts) {
+    const ts = new Date(d.ts / 1e6);
+    document.getElementById('ts-val').textContent =
+      ts.toISOString().substring(11, 23) + ' UTC';
+  }
+
+  // ── Order Book ──
+  renderBook(d.bids || [], d.asks || []);
+
+  // ── Метрики ──
+  setMetric('m-imbalance', d.imbalance_signal, v => v.toFixed(3));
+  setBar('bar-imbalance', (d.imbalance_signal + 1) / 2,
+    d.imbalance_signal > 0 ? 'var(--bid)' : 'var(--ask)');
+
+  setMetric('m-bsr', d.bsr_signal, v => v.toFixed(3));
+  setBar('bar-bsr', (d.bsr_signal + 1) / 2,
+    d.bsr_signal > 0 ? 'var(--bid)' : 'var(--ask)');
+
+  setMetric('m-cancel-bid', d.cancel_bid, v => v.toFixed(3));
+  setMetric('m-cancel-ask', d.cancel_ask, v => v.toFixed(3));
+  setMetric('m-consume-bid', d.consume_bid, v => v.toFixed(2));
+  setMetric('m-consume-ask', d.consume_ask, v => v.toFixed(2));
+
+  // Last trade
+  if (d.last_trade_price > 0) {
+    document.getElementById('m-last-trade').textContent =
+      d.last_trade_price.toFixed(2) + ' × ' + (d.last_aggressor_size || '—');
+    const side = d.last_aggressor_side === 0 ? 'BID' : 'ASK';
+    const sideEl = document.getElementById('m-last-side');
+    sideEl.textContent = side + ' aggressor';
+    sideEl.style.color = d.last_aggressor_side === 0 ? 'var(--bid)' : 'var(--ask)';
+  }
+
+  // Events
+  const evEl = document.getElementById('m-events');
+  const events = d.events || 0;
+  evEl.textContent = events.toLocaleString();
+
+  // ── Детекторы ──
+  // Iceberg
+  const iceEl = document.getElementById('d-iceberg');
+  if (d.iceberg > 0) {
+    const side = d.iceberg_side === 0 ? 'bid' : 'ask';
+    iceEl.innerHTML = `<span class="badge badge-${side}">${d.iceberg === 1 ? 'NATIVE' : 'ISV'} ${side.toUpperCase()}</span>`;
+  } else {
+    iceEl.innerHTML = '<span class="badge badge-inactive">NONE</span>';
+  }
+  document.getElementById('d-ice-prob').textContent =
+    d.iceberg_prob !== undefined ? (d.iceberg_prob * 100).toFixed(1) + '%' : '—';
+
+  // Cascade
+  const casEl = document.getElementById('d-cascade');
+  if (d.cascade > 0) {
+    const dir = d.cascade_direction === 0 ? 'bid' : 'ask';
+    casEl.innerHTML = `<span class="badge badge-warn">ACTIVE ${dir.toUpperCase()}</span>`;
+  } else {
+    casEl.innerHTML = '<span class="badge badge-inactive">NONE</span>';
+  }
+  document.getElementById('d-cas-depth').textContent = d.cascade_depth || '—';
+
+  document.getElementById('d-repos-away').textContent =
+    d.reposition_away !== undefined ? d.reposition_away.toFixed(4) : '—';
+  document.getElementById('d-repos-toward').textContent =
+    d.reposition_toward !== undefined ? d.reposition_toward.toFixed(4) : '—';
+
+  // ── Статус бота ──
+  const dboEl = document.getElementById('s-dbo-drop');
+  dboEl.textContent = d.dbo_drop || 0;
+  dboEl.className = 'stat-value' + (d.dbo_drop > 0 ? ' danger' : '');
+
+  const trEl = document.getElementById('s-trade-drop');
+  trEl.textContent = d.trade_drop || 0;
+  trEl.className = 'stat-value' + (d.trade_drop > 0 ? ' danger' : '');
+
+  document.getElementById('s-book-valid').textContent = d.book_valid ? 'YES' : 'NO';
+  document.getElementById('s-book-valid').style.color = d.book_valid ? 'var(--bid)' : 'var(--ask)';
+  document.getElementById('s-spread').textContent =
+    d.spread !== undefined ? (d.spread * tick_size).toFixed(2) : '—';
+
+  // Update rate (events per second)
+  const now = Date.now();
+  const dt = (now - lastUpdateTime) / 1000;
+  if (dt > 0 && lastEventCount > 0) {
+    const rate = (events - lastEventCount) / dt;
+    document.getElementById('s-update-rate').textContent =
+      rate > 0 ? Math.round(rate).toLocaleString() + ' ev/s' : '—';
+  }
+  lastEventCount = events;
+  lastUpdateTime = now;
+}
+
+// ─────────────────────────────────────────
+// Рендер стакана
+// ─────────────────────────────────────────
+function renderBook(bids, asks) {
+  // Asks: показываем в обратном порядке (лучший ask — снизу)
+  const askBody = document.getElementById('ask-body');
+  const reversed = [...asks].reverse();
+  const maxAskSize = Math.max(...asks.map(a => a[1]), 1);
+  askBody.innerHTML = reversed.map(([price, size, orders]) => {
+    const pct = (size / maxAskSize * 100).toFixed(1);
+    return `<tr class="ask-row">
+      <td>${orders}</td>
+      <td class="bar-cell" style="--bar-pct:${pct}%">${size}</td>
+      <td><b>${price.toFixed(2)}</b></td>
+    </tr>`;
+  }).join('');
+
+  // Bids
+  const bidBody = document.getElementById('bid-body');
+  const maxBidSize = Math.max(...bids.map(b => b[1]), 1);
+  bidBody.innerHTML = bids.map(([price, size, orders]) => {
+    const pct = (size / maxBidSize * 100).toFixed(1);
+    return `<tr class="bid-row">
+      <td>${orders}</td>
+      <td class="bar-cell" style="--bar-pct:${pct}%">${size}</td>
+      <td><b>${price.toFixed(2)}</b></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────
+// Хелперы
+// ─────────────────────────────────────────
+function setMetric(id, val, fmt) {
+  const el = document.getElementById(id);
+  if (val !== undefined && val !== null) {
+    el.textContent = fmt(val);
+    el.style.color = val > 0 ? 'var(--bid)' : val < 0 ? 'var(--ask)' : 'var(--text)';
+  }
+}
+
+function setBar(id, pct, color) {
+  const el = document.getElementById(id);
+  el.style.width = (Math.max(0, Math.min(1, pct)) * 100).toFixed(1) + '%';
+  el.style.background = color;
+}
+
+// ─────────────────────────────────────────
+// Команды управления
+// ─────────────────────────────────────────
+function sendCmd(cmd) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    document.getElementById('cmd-status').textContent = 'ERROR: not connected';
+    return;
+  }
+  if (cmd === 'emergency_stop') {
+    if (!confirm('EMERGENCY STOP — are you sure?')) return;
+  }
+  ws.send(JSON.stringify({cmd}));
+  document.getElementById('cmd-status').textContent =
+    `[${new Date().toTimeString().substring(0,8)}] Sent: ${cmd}`;
+}
+
+// ─────────────────────────────────────────
+// Старт
+// ─────────────────────────────────────────
+connect();
+</script>
+</body>
+</html>
