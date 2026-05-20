@@ -33,8 +33,16 @@ RECONNECT_DELAY = 2.0   # секунд между попытками переп�
 # ─────────────────────────────────────────
 # FastAPI app
 # ─────────────────────────────────────────
+# app = FastAPI(title="BarracudaBot Web Panel")
+# app.mount("/static", StaticFiles(directory="static"), name="static")
+
 app = FastAPI(title="BarracudaBot Web Panel")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Вычисляем абсолютный путь к папке static относительно файла main.py
+current_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(current_dir, "static")
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # ─────────────────────────────────────────
 # Хранилище активных WebSocket соединений
