@@ -141,6 +141,7 @@ async def lifespan(app: FastAPI):
         _bot_task.cancel()
 
 app = FastAPI(title="BarracudaBot Web Panel", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # ─────────────────────────────────────────
 # WebSocket эндпоинт для браузера

@@ -7,20 +7,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:        #060810;
-    --bg2:       #0b0f1a;
-    --bg3:       #101525;
-    --border:    #1a2440;
-    --border2:   #243060;
-    --bid:       #00e676;
-    --bid-dim:   #00502a;
-    --ask:       #ff3d5a;
-    --ask-dim:   #5a0018;
-    --accent:    #00b8ff;
-    --accent2:   #7c4dff;
-    --warn:      #ffab00;
-    --text:      #c8d8f0;
-    --text-dim:  #4a6080;
+    --bg:        #f0f2f5; /* Общий фон между блоками */
+    --bg2:       #ffffff; /* Основной белый фон блоков */
+    --bg3:       #f8f9fa; /* Серый фон для панели Account и шапки спреда */
+    --border:    #cccccc; /* Четкие серые границы блоков */
+    --border2:   #b0b8c4; /* Более темный серый для кнопок/акцентов */
+    --bid:       #00aa4b; /* Чуть более темный зеленый, чтобы читался на белом */
+    --bid-dim:   #e8f5e9; 
+    --ask:       #d32f2f; /* Чуть более темный красный для белого фона */
+    --ask-dim:   #ffebee; 
+    --accent:    #007cb0; /* Синий акцент, адаптированный под светлую тему */
+    --accent2:   #5e35b1; 
+    --warn:      #f57c00; 
+    --text:      #1a1f2c; /* Темный (почти черный) текст для идеальной читаемости */
+    --text-dim:  #626c7a; /* Серый текст для подписей */
     --mono:      'Share Tech Mono', monospace;
     --body:      'Exo 2', sans-serif;
   }
@@ -56,6 +56,7 @@
   .logo { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
   .price-ticker { font-family: var(--mono); font-size: 18px; display: flex; gap: 15px; }
   .price-up { color: var(--bid); }
+  .price-down { color: var(--ask); }
   
   .header-center { display: flex; gap: 10px; }
   .header-right { display: flex; align-items: center; gap: 12px; }
@@ -256,11 +257,6 @@
             </tr>
           </thead>
           <tbody id="ob-asks-body">
-            <tr id="ask-9"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-            <tr id="ask-8"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-            <tr id="ask-7"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-            <tr id="ask-6"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-            <tr id="ask-5"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
             <tr id="ask-4"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
             <tr id="ask-3"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
             <tr id="ask-2"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
@@ -278,11 +274,6 @@
             <tr id="bid-2"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
             <tr id="bid-3"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
             <tr id="bid-4"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-5"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-6"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-7"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-8"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-9"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
           </tbody>
         </table>
       </div>
@@ -313,162 +304,145 @@
 <script>
   // Настройки кольцевого буфера для HFT ES-фьючерсов
   const MAX_POINTS = 2000;
-  let pointsCount = 0;
+  let lastMid = 0;
 
-  // ОБЩИЕ НАСТРОЙКИ ЦВЕТА ДЛЯ ТРЕЙДИНГВЬЮ ГРАФИКОВ
   const chartOptions = {
-    layout: { background: { color: '#0b0f1a' }, textColor: '#c8d8f0', fontSize: 10 },
-    grid: { vertLines: { color: '#1a2440' }, horzLines: { color: '#1a2440' } },
-    timeScale: { timeVisible: true, secondsVisible: true, borderVisible: false },
-    rightPriceScale: { borderVisible: false },
+    layout: { background: { color: '#ffffff' }, textColor: '#1a1f2c', fontSize: 10 },
+    grid: { vertLines: { color: '#e0e0e0' }, horzLines: { color: '#e0e0e0' } }, // Светло-серые сетки
+    timeScale: { timeVisible: true, secondsVisible: true, borderVisible: true, borderColor: '#cccccc' },
+    rightPriceScale: { borderVisible: true, borderColor: '#cccccc' },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
   };
 
-  // ИНИЦИАЛИЗАЦИЯ ГРАФИКОВ
   const chartMain = LightweightCharts.createChart(document.getElementById('pane-main-chart'), chartOptions);
   const chartSub1 = LightweightCharts.createChart(document.getElementById('pane-sub-01'), chartOptions);
   const chartSub2 = LightweightCharts.createChart(document.getElementById('pane-sub-02'), chartOptions);
 
-  // СЕРИИ ДАННЫХ ДЛЯ TICK CHART 01 (Новый синтаксис v5.x)
-  const seriesMid = chartMain.addSeries(LightweightCharts.LineSeries, { color: '#00b8ff', lineWidth: 1.5, title: 'Mid' });
-  const seriesKalman = chartMain.addSeries(LightweightCharts.LineSeries, { color: '#00e676', lineWidth: 1, title: 'Kalman' });
-  const seriesDES = chartMain.addSeries(LightweightCharts.LineSeries, { color: '#ffab00', lineWidth: 1, title: 'DES' });
+  const seriesMid    = chartMain.addSeries(LightweightCharts.LineSeries, { color: '#00b8ff', lineWidth: 1.5, title: 'Mid' });
+  const seriesKalman = chartMain.addSeries(LightweightCharts.LineSeries, { color: '#00e676', lineWidth: 1,   title: 'KKF' });
+  const seriesDES    = chartMain.addSeries(LightweightCharts.LineSeries, { color: '#ffab00', lineWidth: 1,   title: 'DES' });
 
-  // СЕРИИ ДАННЫХ ДЛЯ SUB CHART 01
-  const seriesKVel = chartSub1.addSeries(LightweightCharts.LineSeries, { color: '#7c4dff', lineWidth: 1, title: 'K-Vel' });
-  const seriesKInt = chartSub1.addSeries(LightweightCharts.LineSeries, { color: '#ff3d5a', lineWidth: 1, title: 'K-Int' });
+  const seriesKVel = chartSub1.addSeries(LightweightCharts.LineSeries, { color: '#7c4dff', lineWidth: 1, title: 'KKF-Vel' });
+  const seriesKInt = chartSub1.addSeries(LightweightCharts.LineSeries, { color: '#ff3d5a', lineWidth: 1, title: 'KKF-Int' });
 
-  // СЕРИИ ДАННЫХ ДЛЯ SUB CHART 02
-  const seriesDVel = chartSub2.addSeries(LightweightCharts.LineSeries, { color: '#00e676', lineWidth: 1, title: 'DES-Vel' });
+  const seriesDVel   = chartSub2.addSeries(LightweightCharts.LineSeries, { color: '#00e676', lineWidth: 1, title: 'DES-Vel' });
   const seriesDSlope = chartSub2.addSeries(LightweightCharts.LineSeries, { color: '#ffab00', lineWidth: 1, title: 'DES-Slope' });
 
-  // СИНХРОНИЗАЦИЯ КРЕСТИКА И ШКАЛЫ ВРЕМЕНИ
   [chartMain, chartSub1, chartSub2].forEach((ch, idx, arr) => {
     ch.timeScale().fitContent();
-    
-    // Синхронизация масштаба
     ch.timeScale().subscribeVisibleLogicalRangeChange(range => {
-      arr.forEach(otherCh => {
-        if (otherCh !== ch) otherCh.timeScale().setVisibleLogicalRange(range);
-      });
+      arr.forEach(other => { if (other !== ch) other.timeScale().setVisibleLogicalRange(range); });
     });
-
-    // Синхронизация курсора
     ch.subscribeCrosshairMove(param => {
       if (!param.time) return;
-      arr.forEach(otherCh => {
-        if (otherCh !== ch) otherCh.setCrosshairPosition(param.price, param.time, seriesMid); // Условная привязка серии
-      });
+      arr.forEach(other => { if (other !== ch) other.setCrosshairPosition(param.price, param.time, seriesMid); });
     });
   });
 
-  // АВТО-РЕСАЙЗ ПРИ ИЗМЕНЕНИИ ЭКРАНА
   const resizeObserver = new ResizeObserver(() => {
     chartMain.resize(document.getElementById('pane-main-chart').clientWidth, document.getElementById('pane-main-chart').clientHeight);
-    chartSub1.resize(document.getElementById('pane-sub-01').clientWidth, document.getElementById('pane-sub-01').clientHeight);
-    chartSub2.resize(document.getElementById('pane-sub-02').clientWidth, document.getElementById('pane-sub-02').clientHeight);
+    chartSub1.resize(document.getElementById('pane-sub-01').clientWidth,     document.getElementById('pane-sub-01').clientHeight);
+    chartSub2.resize(document.getElementById('pane-sub-02').clientWidth,     document.getElementById('pane-sub-02').clientHeight);
   });
   resizeObserver.observe(document.getElementById('pane-main-chart'));
 
-  // РАБОТА С WEBSOCKET ПОТОКОМ СНАПШОТОВ
+  // ── WebSocket ──
   let ws;
   function connectWebSocket() {
-    const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    ws = new WebSocket(wsProto + window.location.host + '/ws');
-
+    const proto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    ws = new WebSocket(proto + window.location.host + '/ws');
     ws.onmessage = (event) => {
-      try {
-        const snap = JSON.parse(event.data);
-        updateUI(snap);
-      } catch (e) {
-        console.error("Ошибка парсинга JSON снапшота:", e);
-      }
+      try { updateUI(JSON.parse(event.data)); }
+      catch (e) { console.error('JSON parse error:', e); }
     };
-
-    ws.onclose = () => {
-      setTimeout(connectWebSocket, 2000); // Авто-реконнект
-    };
+    ws.onclose = () => setTimeout(connectWebSocket, 2000);
   }
 
-  // ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ДАННЫМИ СНАПШОТА
+  // ── Обновление UI ──
   function updateUI(snap) {
-    const ts = snap.timestamp || Math.floor(Date.now() / 1000);
+    // ts приходит в наносекундах → конвертируем в секунды для графиков
+    const ts = snap.ts ? snap.ts / 1e9 : Math.floor(Date.now() / 1000);
+    
+    // 1. Заголовок с индикацией направления цены (Up / Down)
+    if (snap.mid !== undefined) {
+      const midEl = document.getElementById('hdr-mid');
+      midEl.textContent = snap.mid.toFixed(2);
 
-    // 1. Обновление текстовых хедеров и метрик
-    if (snap.mid_price !== undefined) {
-      document.getElementById('hdr-mid').textContent = snap.mid_price.toFixed(2);
-      document.getElementById('ob-spread-val').textContent = (snap.spread || 0).toFixed(2);
+      // Меняем цвет только если цена действительно изменилась
+      if (snap.mid > lastMid) {
+        midEl.className = 'price-up';
+      } else if (snap.mid < lastMid) {
+        midEl.className = 'price-down';
+      }
+      lastMid = snap.mid; // Запоминаем текущую цену для следующего тика
+
       document.getElementById('hdr-spr').textContent = (snap.spread || 0).toFixed(2);
+      document.getElementById('ob-spread-val').textContent = (snap.spread || 0).toFixed(2);
     }
 
-    // 2. Наполнение графиков (Алгоритм скользящего окна)
-    if (snap.mid_price !== undefined) {
-      const midData = { time: ts, value: snap.mid_price };
-      const kalmanData = { time: ts, value: snap.kalman_val || snap.mid_price };
-      const desData = { time: ts, value: snap.des_val || snap.mid_price };
-
-      if (pointsCount >= MAX_POINTS) {
-        // Lightweight Charts автоматически сдвигает рендеринг при передаче новых точек через update.
-        // Чтобы жестко контролировать выделенную браузером память при многочасовой работе,
-        // при достижении лимита мы можем перезатирать старые массивы, но для update скользящее окно работает нативно.
-      }
-      
-      seriesMid.update(midData);
-      seriesKalman.update(kalmanData);
-      seriesDES.update(desData);
-
-      // Заполнение суб-графиков
-      seriesKVel.update({ time: ts, value: snap.kalman_velocity || 0 });
-      seriesKInt.update({ time: ts, value: snap.kalman_intensity || 0 });
-      seriesDVel.update({ time: ts, value: snap.des_velocity || 0 });
-      seriesDSlope.update({ time: ts, value: snap.des_slope || 0 });
-
-      pointsCount++;
+    // 2. Графики
+    if (snap.mid !== undefined) {
+      seriesMid.update(   { time: ts, value: snap.mid });
+      seriesKalman.update({ time: ts, value: snap.kkf_price    || snap.mid });
+      seriesDES.update(   { time: ts, value: snap.des_price    || snap.mid });
+      seriesKVel.update(  { time: ts, value: snap.kkf_velocity || 0 });
+      seriesKInt.update(  { time: ts, value: snap.kkf_intensity|| 0 });
+      seriesDVel.update(  { time: ts, value: snap.des_velocity || 0 });
+      seriesDSlope.update({ time: ts, value: snap.des_slope    || 0 });
     }
 
-    // 3. Оптимизированное обновление Стакана (OrderBook)
-    if (snap.asks && snap.asks.length >= 10) {
-      for (let i = 0; i < 10; i++) {
-        const row = document.getElementById(`ask-${i}`);
-        const data = snap.asks[i]; // [price, size, count_orders]
+    // 3. Ордербук (5 уровней)
+    if (snap.asks && snap.asks.length >= 5) {
+      for (let i = 0; i < 5; i++) {
+        const row  = document.getElementById(`ask-${i}`);
+        const data = snap.asks[i]; // [price, size, orders]
         row.cells[0].textContent = data[2];
         row.cells[1].textContent = data[1];
         row.cells[2].textContent = data[0].toFixed(2);
       }
     }
-    if (snap.bids && snap.bids.length >= 10) {
-      for (let i = 0; i < 10; i++) {
-        const row = document.getElementById(`bid-${i}`);
-        const data = snap.bids[i];
+    if (snap.bids && snap.bids.length >= 5) {
+      for (let i = 0; i < 5; i++) {
+        const row  = document.getElementById(`bid-${i}`);
+        const data = snap.bids[i]; // [price, size, orders]
         row.cells[0].textContent = data[2];
         row.cells[1].textContent = data[1];
         row.cells[2].textContent = data[0].toFixed(2);
       }
     }
 
-    // 4. Метрики системы и Аккаунт
+    // 4. Метрики
     if (snap.dbo_drop !== undefined) {
-      document.getElementById('m-drop').textContent = `${snap.dbo_drop} / ${snap.trade_drop || 0}`;
-      document.getElementById('m-uprate').textContent = `${snap.update_rate || 0}/s`;
+      document.getElementById('m-drop').textContent   = `${snap.dbo_drop} / ${snap.trade_drop || 0}`;
+      document.getElementById('m-uprate').textContent = `${snap.events || 0}`;
     }
-    if (snap.account) {
-      document.getElementById('acc-pos').textContent = snap.account.position || '0';
-      document.getElementById('acc-orders').textContent = snap.account.orders || '0';
-      document.getElementById('acc-upnl').textContent = `${(snap.account.upnl || 0).toFixed(2)} USD`;
-      document.getElementById('acc-rpnl').textContent = `${(snap.account.rpnl || 0).toFixed(2)} USD`;
+    if (snap.kkf_valid !== undefined)
+      document.getElementById('m-kalman').textContent = snap.kkf_valid ? 'Active' : 'Wait';
+    if (snap.des_valid !== undefined)
+      document.getElementById('m-des').textContent    = snap.des_valid ? 'Active' : 'Wait';
+
+    // 5. Аккаунт
+    if (snap.acc_pos !== undefined) {
+      document.getElementById('acc-pos').textContent    = snap.acc_pos;
+      document.getElementById('acc-orders').textContent = snap.acc_orders || 0;
+      const upnl = snap.acc_upnl || 0;
+      const rpnl = snap.acc_rpnl || 0;
+      const upnlEl = document.getElementById('acc-upnl');
+      const rpnlEl = document.getElementById('acc-rpnl');
+      upnlEl.textContent = `${upnl.toFixed(2)} USD`;
+      upnlEl.style.color = upnl >= 0 ? 'var(--bid)' : 'var(--ask)';
+      rpnlEl.textContent = `${rpnl.toFixed(2)} USD`;
+      rpnlEl.style.color = rpnl >= 0 ? 'var(--bid)' : 'var(--ask)';
     }
   }
 
-  // ОТПРАВКА КОМАНД УПРАВЛЕНИЯ НА БЭКЕНД
   function sendCmd(cmdType) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ cmd: cmdType }));
-    } else {
-      alert("Нет подключения к WebSocket серверу!");
-    }
+    else
+      alert('Нет подключения к WebSocket серверу!');
   }
 
-  // Запуск
   connectWebSocket();
 </script>
 </body>
