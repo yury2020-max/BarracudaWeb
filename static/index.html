@@ -30,15 +30,15 @@
     background: var(--bg);
     color: var(--text);
     font-family: var(--body);
-    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 
   /* Основной Grid-каркас всего приложения */
   .app-container {
     display: grid;
-    grid-template-rows: 50px 1fr;
-    height: 100vh;
+    grid-template-rows: clamp(44px, 6dvh, 54px) 1fr;
+    height: 100dvh;
     width: 100vw;
   }
 
@@ -63,16 +63,19 @@
 
   /* КНОПКИ */
   btn, button {
-    padding: 5px 12px;
+    padding: 6px 14px;
+    min-height: 36px;
     border: 1px solid var(--border2);
     background: var(--bg3);
     color: var(--text);
     font-family: var(--body);
-    font-size: 13px;
+    font-size: clamp(12px, 1.3vw, 14px);
     font-weight: 600;
     cursor: pointer;
     border-radius: 3px;
     transition: all 0.15s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   btn:hover, button:hover { background: var(--border); border-color: var(--accent); }
   .btn-start { border-color: var(--bid-dim); color: var(--bid); }
@@ -87,7 +90,7 @@
   main {
     grid-row: 2;
     display: grid;
-    grid-template-columns: 1fr 320px; /* Левая колонка под графики, правая фиксированная */
+    grid-template-columns: 1fr clamp(260px, 26vw, 340px);
     height: 100%;
     overflow: hidden;
   }
@@ -96,7 +99,7 @@
   .charts-column {
     grid-column: 1;
     display: grid;
-    grid-template-rows: 1fr 140px 140px; /* Соотношение главного и суб-графиков */
+    grid-template-rows: 1fr clamp(110px, 15dvh, 150px) clamp(110px, 15dvh, 150px);
     gap: 4px;
     background: var(--bg);
     padding: 4px;
@@ -129,8 +132,8 @@
     border-left: 1px solid var(--border);
     background: var(--bg2);
     display: grid;
-    grid-template-rows: auto 180px 180px; /* Ордербук занимает всё остальное сверху */
-    height: 100%;
+    grid-template-rows: 1fr clamp(150px, 19dvh, 195px) clamp(150px, 19dvh, 195px);
+    height: 100dvh;
     overflow: hidden;
   }
 
@@ -139,7 +142,7 @@
     padding: 8px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
     border-bottom: 1px solid var(--border);
   }
   .panel-title {
@@ -157,9 +160,23 @@
     font-size: 12px;
     table-layout: fixed;
   }
-  .ob-table th { color: var(--text-dim); font-weight: normal; text-align: right; padding-bottom: 4px; }
-  .ob-table th:first-child, .ob-table td:first-child { text-align: left; }
+  .ob-table col.col-sbid  { width: 38px; }
+  .ob-table col.col-obid  { width: 32px; }
+  .ob-table col.col-price { width: auto; }
+  .ob-table col.col-oask  { width: 32px; }
+  .ob-table col.col-sask  { width: 38px; }
+  .ob-table th {
+    color: var(--text-dim); font-weight: normal;
+    text-align: right; padding-bottom: 4px;
+  }
+  .ob-table th.th-price { text-align: center; }
   .ob-table td { padding: 2px 0; text-align: right; height: 18px; }
+  .ob-table td.ob-price-ask { text-align: right; color: var(--ask); font-weight: 600; padding: 2px 6px; }
+  .ob-table td.ob-price-bid { text-align: right; color: var(--bid); font-weight: 600; padding: 2px 6px; }
+  .ob-table th.th-price     { text-align: right; padding-right: 6px; }
+  .ob-table td.ob-s  { color: var(--accent); }
+  .ob-table td.ob-o  { color: var(--text);   }
+  .ob-table td.ob-empty { color: var(--text-dim); opacity: 0.3; }
   .ob-ask { color: var(--ask); font-weight: 600; }
   .ob-bid { color: var(--bid); font-weight: 600; }
   .ob-spread-row td {
@@ -185,7 +202,7 @@
     overflow-y: auto;
     font-family: var(--mono);
     font-size: 11px;
-    padding-right: 4px;
+    padding-right: 10px;
   }
   .metrics-scroll::-webkit-scrollbar { width: 4px; }
   .metrics-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
@@ -247,33 +264,29 @@
 
     <div class="sidebar">
       <div class="orderbook-panel">
-        <div class="panel-title">Orderbook (10L)</div>
+        <div class="panel-title">Orderbook L2</div>
         <table class="ob-table">
+          <colgroup>
+            <col class="col-sbid">
+            <col class="col-obid">
+            <col class="col-price">
+            <col class="col-oask">
+            <col class="col-sask">
+          </colgroup>
           <thead>
             <tr>
-              <th>Orders</th>
-              <th>Size</th>
-              <th>Price</th>
+              <th style="text-align:right; color:var(--accent)">S</th>
+              <th style="text-align:right; color:var(--text)">O</th>
+              <th class="th-price">Price</th>
+              <th style="text-align:right; color:var(--text)">O</th>
+              <th style="text-align:right; color:var(--accent); padding-right:8px">S</th>
             </tr>
           </thead>
           <tbody id="ob-asks-body">
-            <tr id="ask-4"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-            <tr id="ask-3"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-            <tr id="ask-2"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-            <tr id="ask-1"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-            <tr id="ask-0"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-ask">-</td></tr>
-          </tbody>
-          <tbody>
-            <tr class="ob-spread-row">
-              <td colspan="3">SPREAD: <span id="ob-spread-val">-</span></td>
-            </tr>
+            
           </tbody>
           <tbody id="ob-bids-body">
-            <tr id="bid-0"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-1"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-2"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-3"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
-            <tr id="bid-4"><td class="ob-orders">-</td><td class="ob-size">-</td><td class="ob-bid">-</td></tr>
+            
           </tbody>
         </table>
       </div>
@@ -303,8 +316,10 @@
 
 <script>
   // Настройки кольцевого буфера для HFT ES-фьючерсов
-  const MAX_POINTS = 2000;
+  const MAX_POINTS = 4000;
+  const OB_LEVELS = 10;   // ← меняем уровни стакана только здесь
   let lastMid = 0;
+  let lastChartTs = 0;
 
   const chartOptions = {
     layout: { background: { color: '#ffffff' }, textColor: '#1a1f2c', fontSize: 10 },
@@ -328,14 +343,32 @@
   const seriesDVel   = chartSub2.addSeries(LightweightCharts.LineSeries, { color: '#00e676', lineWidth: 1, title: 'DES-Vel' });
   const seriesDSlope = chartSub2.addSeries(LightweightCharts.LineSeries, { color: '#ffab00', lineWidth: 1, title: 'DES-Slope' });
 
-  [chartMain, chartSub1, chartSub2].forEach((ch, idx, arr) => {
-    ch.timeScale().fitContent();
-    ch.timeScale().subscribeVisibleLogicalRangeChange(range => {
-      arr.forEach(other => { if (other !== ch) other.timeScale().setVisibleLogicalRange(range); });
+  const chartSeriesMap = [
+    { chart: chartMain, series: seriesMid  },
+    { chart: chartSub1, series: seriesKVel },
+    { chart: chartSub2, series: seriesDVel },
+  ];
+
+  chartSeriesMap.forEach(({ chart }) => {
+    chart.timeScale().fitContent();
+    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (range === null) return;
+      chartSeriesMap.forEach(({ chart: other }) => {
+        if (other !== chart) {
+          try { other.timeScale().setVisibleLogicalRange(range); } catch(e) {}
+        }
+      });
     });
-    ch.subscribeCrosshairMove(param => {
+  });
+
+  chartSeriesMap.forEach(({ chart, series }) => {
+    chart.subscribeCrosshairMove(param => {
       if (!param.time) return;
-      arr.forEach(other => { if (other !== ch) other.setCrosshairPosition(param.price, param.time, seriesMid); });
+      chartSeriesMap.forEach(({ chart: other, series: otherSeries }) => {
+        if (other !== chart) {
+          try { other.setCrosshairPosition(param.price, param.time, otherSeries); } catch(e) {}
+        }
+      });
     });
   });
 
@@ -345,6 +378,36 @@
     chartSub2.resize(document.getElementById('pane-sub-02').clientWidth,     document.getElementById('pane-sub-02').clientHeight);
   });
   resizeObserver.observe(document.getElementById('pane-main-chart'));
+
+  // ── Генерация строк ордербука ──
+  (function buildOrderbook() {
+    const asksBody = document.getElementById('ob-asks-body');
+    const bidsBody = document.getElementById('ob-bids-body');
+    asksBody.innerHTML = '';
+    bidsBody.innerHTML = '';
+    for (let i = OB_LEVELS - 1; i >= 0; i--) {
+      const tr = document.createElement('tr');
+      tr.id = `ask-${i}`;
+      tr.innerHTML =
+        `<td class="ob-empty"></td>` +
+        `<td class="ob-empty"></td>` +
+        `<td class="ob-price-ask">-</td>` +
+        `<td class="ob-o">-</td>` +
+        `<td class="ob-s" style="padding-right:8px">-</td>`;
+      asksBody.appendChild(tr);
+    }
+    for (let i = 0; i < OB_LEVELS; i++) {
+      const tr = document.createElement('tr');
+      tr.id = `bid-${i}`;
+      tr.innerHTML =
+        `<td class="ob-s">-</td>` +
+        `<td class="ob-o">-</td>` +
+        `<td class="ob-price-bid">-</td>` +
+        `<td class="ob-empty"></td>` +
+        `<td class="ob-empty" style="padding-right:8px"></td>`;
+      bidsBody.appendChild(tr);
+    }
+  })();
 
   // ── WebSocket ──
   let ws;
@@ -361,7 +424,13 @@
   // ── Обновление UI ──
   function updateUI(snap) {
     // ts приходит в наносекундах → конвертируем в секунды для графиков
-    const ts = snap.ts ? snap.ts / 1e9 : Math.floor(Date.now() / 1000);
+    // Миллисекундная точность: ns → ms (целое) → секунды с дробью
+    const rawTs = snap.ts
+      ? Math.round(snap.ts / 1e6) / 1000
+      : Date.now() / 1000;
+    // Гарантируем монотонность — каждая точка уникальна
+    const ts = rawTs > lastChartTs ? rawTs : lastChartTs + 0.001;
+    lastChartTs = ts;
     
     // 1. Заголовок с индикацией направления цены (Up / Down)
     if (snap.mid !== undefined) {
@@ -376,8 +445,7 @@
       }
       lastMid = snap.mid; // Запоминаем текущую цену для следующего тика
 
-      document.getElementById('hdr-spr').textContent = (snap.spread || 0).toFixed(2);
-      document.getElementById('ob-spread-val').textContent = (snap.spread || 0).toFixed(2);
+      // spread пересчитывается ниже из реального стакана
     }
 
     // 2. Графики
@@ -391,24 +459,36 @@
       seriesDSlope.update({ time: ts, value: snap.des_slope    || 0 });
     }
 
-    // 3. Ордербук (5 уровней)
-    if (snap.asks && snap.asks.length >= 5) {
-      for (let i = 0; i < 5; i++) {
+    // 3. Ордербук L2 (5 уровней)
+    // asks: колонки [empty][empty][price][orders][size]
+    if (snap.asks && snap.asks.length > 0) {
+      const askLevels = Math.min(OB_LEVELS, snap.asks.length);
+      for (let i = 0; i < askLevels; i++) {
         const row  = document.getElementById(`ask-${i}`);
         const data = snap.asks[i]; // [price, size, orders]
-        row.cells[0].textContent = data[2];
-        row.cells[1].textContent = data[1];
-        row.cells[2].textContent = data[0].toFixed(2);
+        if (!row || !data) continue;
+        row.cells[2].textContent = data[0].toFixed(2); // price
+        row.cells[3].textContent = data[2];             // orders
+        row.cells[4].textContent = data[1];             // size
       }
     }
-    if (snap.bids && snap.bids.length >= 5) {
-      for (let i = 0; i < 5; i++) {
+    // bids: колонки [size][orders][price][empty][empty]
+    if (snap.bids && snap.bids.length > 0) {
+      const bidLevels = Math.min(OB_LEVELS, snap.bids.length);
+      for (let i = 0; i < bidLevels; i++) {
         const row  = document.getElementById(`bid-${i}`);
         const data = snap.bids[i]; // [price, size, orders]
-        row.cells[0].textContent = data[2];
-        row.cells[1].textContent = data[1];
-        row.cells[2].textContent = data[0].toFixed(2);
+        if (!row || !data) continue;
+        row.cells[0].textContent = data[1];             // size
+        row.cells[1].textContent = data[2];             // orders
+        row.cells[2].textContent = data[0].toFixed(2); // price
       }
+    }
+
+    // Спред из реального стакана
+    if (snap.asks && snap.bids && snap.asks[0] && snap.bids[0]) {
+      const spreadPrice = (snap.asks[0][0] - snap.bids[0][0]).toFixed(2);
+      document.getElementById('hdr-spr').textContent = spreadPrice;
     }
 
     // 4. Метрики
