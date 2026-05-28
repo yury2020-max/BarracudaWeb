@@ -39,7 +39,7 @@
     display: grid;
     grid-template-rows: clamp(44px, 6dvh, 54px) 1fr;
     height: 100dvh;
-    width: 100vw;
+    width: 100%;
   }
 
   /* ВЕРХНЯЯ ПАНЕЛЬ */
@@ -104,6 +104,7 @@
     background: var(--bg);
     padding: 4px;
     height: 100%;
+    min-width: 0;
   }
   .chart-container {
     background: var(--bg2);
@@ -133,7 +134,7 @@
     background: var(--bg2);
     display: grid;
     grid-template-rows: 1fr clamp(150px, 19dvh, 195px) clamp(150px, 19dvh, 195px);
-    height: 100dvh;
+    height: 100%;
     overflow: hidden;
   }
 
@@ -154,7 +155,7 @@
     letter-spacing: 0.5px;
   }
   .ob-table {
-    width: 100%;
+    width: 216px;
     border-collapse: collapse;
     font-family: var(--mono);
     font-size: 12px;
@@ -162,7 +163,7 @@
   }
   .ob-table col.col-sbid  { width: 38px; }
   .ob-table col.col-obid  { width: 32px; }
-  .ob-table col.col-price { width: auto; }
+  .ob-table col.col-price { width: 76px; }
   .ob-table col.col-oask  { width: 32px; }
   .ob-table col.col-sask  { width: 38px; }
   .ob-table th {
@@ -171,24 +172,14 @@
   }
   .ob-table th.th-price { text-align: center; }
   .ob-table td { padding: 2px 0; text-align: right; height: 18px; }
-  .ob-table td.ob-price-ask { text-align: right; color: var(--ask); font-weight: 600; padding: 2px 6px; }
-  .ob-table td.ob-price-bid { text-align: right; color: var(--bid); font-weight: 600; padding: 2px 6px; }
-  .ob-table th.th-price     { text-align: right; padding-right: 6px; }
+  .ob-table td.ob-price-ask { text-align: center; color: var(--ask); font-weight: 600; padding: 2px 6px; }
+  .ob-table td.ob-price-bid { text-align: center; color: var(--bid); font-weight: 600; padding: 2px 6px; }  
   .ob-table td.ob-s  { color: var(--accent); }
   .ob-table td.ob-o  { color: var(--text);   }
   .ob-table td.ob-empty { color: var(--text-dim); opacity: 0.3; }
   .ob-ask { color: var(--ask); font-weight: 600; }
   .ob-bid { color: var(--bid); font-weight: 600; }
-  .ob-spread-row td {
-    text-align: center !important;
-    background: var(--bg3);
-    color: var(--text-dim);
-    font-size: 11px;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    height: 20px;
-  }
-
+  
   /* МОДУЛЬ METRICS / DETECTORS */
   .metrics-panel {
     padding: 8px;
@@ -421,6 +412,44 @@
     ws.onclose = () => setTimeout(connectWebSocket, 2000);
   }
 
+  // Обновление одной стороны стакана. Протокол снапшотный — каждый кадр
+  // несёт полный top-N, поэтому хвост [n..OB_LEVELS) всегда безопасно чистим:
+  // актуальные уровни приходят целиком, затирать нечего.
+  //   levels — [[price, size, orders], ...] (может быть undefined/пустым)
+  //   prefix — 'ask' | 'bid'
+  //   isBid  — раскладка ячеек: bid=[size, orders, price], ask=[price, orders, size]
+  function renderBookSide(levels, prefix, isBid) {
+    const n = (levels && levels.length) ? Math.min(OB_LEVELS, levels.length) : 0;
+    for (let i = 0; i < OB_LEVELS; i++) {
+      const row = document.getElementById(`${prefix}-${i}`);
+      if (!row) continue;
+
+      if (i < n && levels[i]) {
+        const d = levels[i]; // [price, size, orders]
+        if (isBid) {
+          row.cells[0].textContent = d[1];             // size
+          row.cells[1].textContent = d[2];             // orders
+          row.cells[2].textContent = d[0].toFixed(2);  // price
+        } else {
+          row.cells[2].textContent = d[0].toFixed(2);  // price
+          row.cells[3].textContent = d[2];             // orders
+          row.cells[4].textContent = d[1];             // size
+        }
+      } else {
+        // хвост или пустая сторона — сбрасываем в '-'
+        if (isBid) {
+          row.cells[0].textContent = '-';
+          row.cells[1].textContent = '-';
+          row.cells[2].textContent = '-';
+        } else {
+          row.cells[2].textContent = '-';
+          row.cells[3].textContent = '-';
+          row.cells[4].textContent = '-';
+        }
+      }
+    }
+  }
+
   // ── Обновление UI ──
   function updateUI(snap) {
     // ts приходит в наносекундах → конвертируем в секунды для графиков
@@ -459,31 +488,9 @@
       seriesDSlope.update({ time: ts, value: snap.des_slope    || 0 });
     }
 
-    // 3. Ордербук L2 (5 уровней)
-    // asks: колонки [empty][empty][price][orders][size]
-    if (snap.asks && snap.asks.length > 0) {
-      const askLevels = Math.min(OB_LEVELS, snap.asks.length);
-      for (let i = 0; i < askLevels; i++) {
-        const row  = document.getElementById(`ask-${i}`);
-        const data = snap.asks[i]; // [price, size, orders]
-        if (!row || !data) continue;
-        row.cells[2].textContent = data[0].toFixed(2); // price
-        row.cells[3].textContent = data[2];             // orders
-        row.cells[4].textContent = data[1];             // size
-      }
-    }
-    // bids: колонки [size][orders][price][empty][empty]
-    if (snap.bids && snap.bids.length > 0) {
-      const bidLevels = Math.min(OB_LEVELS, snap.bids.length);
-      for (let i = 0; i < bidLevels; i++) {
-        const row  = document.getElementById(`bid-${i}`);
-        const data = snap.bids[i]; // [price, size, orders]
-        if (!row || !data) continue;
-        row.cells[0].textContent = data[1];             // size
-        row.cells[1].textContent = data[2];             // orders
-        row.cells[2].textContent = data[0].toFixed(2); // price
-      }
-    }
+    // 3. Ордербук L2 — снапшотный протокол, чистим хвост
+    renderBookSide(snap.asks, 'ask', false);
+    renderBookSide(snap.bids, 'bid', true);
 
     // Спред из реального стакана
     if (snap.asks && snap.bids && snap.asks[0] && snap.bids[0]) {
