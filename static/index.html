@@ -285,7 +285,7 @@
       <div class="metrics-panel">
         <div class="panel-title">Metrics & Detectors</div>
         <div class="metrics-scroll" id="metrics-container">
-          <div class="metric-row"><span>Drop (DBO/Trade)</span><span class="metric-val" id="m-drop">0 / 0</span></div>
+          <div class="metric-row"><span>Drop (DBO/Trade/Audit)</span><span class="metric-val" id="m-drop">0 / 0 / 0</span></div>
           <div class="metric-row"><span>Update Rate</span><span class="metric-val" id="m-uprate">0/s</span></div>
           <div class="metric-row"><span>Kalman Active</span><span class="metric-val" id="m-kalman">True</span></div>
           <div class="metric-row"><span>DES Active</span><span class="metric-val" id="m-des">True</span></div>
@@ -500,7 +500,7 @@
 
     // 4. Метрики
     if (snap.dbo_drop !== undefined) {
-      document.getElementById('m-drop').textContent   = `${snap.dbo_drop} / ${snap.trade_drop || 0}`;
+      document.getElementById('m-drop').textContent   = `${snap.dbo_drop} / ${snap.trade_drop || 0} / ${snap.audit_drop || 0}`;
       document.getElementById('m-uprate').textContent = `${snap.events || 0}`;
     }
     if (snap.kkf_valid !== undefined)
